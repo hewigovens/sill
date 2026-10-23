@@ -29,8 +29,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         client.$connected.removeDuplicates().sink { [weak self] connected in
             DispatchQueue.main.async { self?.connectedChanged(connected) }
         }.store(in: &subscriptions)
-        client.startBrowsing()
-        client.startRemote()
+        #if DEBUG
+        // -SillNoBrowse 1 with -SillConnect: no Bonjour browse and no remote dials, so a test run against
+        // a loopback host never brings up macOS's Local Network prompt (WindowBridge prototype).
+        let browse = !UserDefaults.standard.bool(forKey: "SillNoBrowse")
+        #else
+        let browse = true
+        #endif
+        if browse {
+            client.startBrowsing()
+            client.startRemote()
+        }
         #if DEBUG
         client.connectFromLaunchArgument()   // -SillConnect host:port, for the off-Bonjour test hosts
         #endif
@@ -101,6 +110,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         guard open.count >= 2 else { FileHandle.standardError.write(Data("flip test: FAIL \(open.count) windows open\n".utf8)); return }
                         self.windows.flipTest(to: open[i % open.count])
                     }
+                }
+            }
+            // -SillOpenDesktop 1: the Desktop window opens by itself (a synthetic host lists no windows),
+            // before the status menu would open for a pick (WindowBridge prototype).
+            if UserDefaults.standard.bool(forKey: "SillOpenDesktop") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.windows.open(.desktop, focus: false)
+                    self?.windows.flipTest(to: .desktop)   // as if it became key, without taking the front
+                }
+                for t in [4.0, 8.0] {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + t) { [weak self] in self?.windows.debugReport(.desktop) }
                 }
             }
             if UserDefaults.standard.bool(forKey: "SillResizeTest") {

@@ -30,6 +30,8 @@ final class StreamInputView: NSView {
     /// The keys and buttons this view has sent down and not up: let go when the view loses the
     /// keyboard or the session ends, so nothing stays held on the other Mac.
     private var keysDown: Set<UInt16> = []
+    /// Typing through this Mac's input method (StreamInputView+TextInput.swift).
+    let textInput = TextInputBridge()
     private var leftDown = false
     /// What an app on the other Mac is dragging under the held button (kind 36): carried out of the
     /// window, the drag goes on here with those files.
@@ -80,6 +82,7 @@ final class StreamInputView: NSView {
             self.window?.invalidateCursorRects(for: self)
             #if DEBUG
             MacInputTest.runIfAsked(self)   // -SillInputTest 1
+            MacTextInputTest.runIfAsked(self)   // -SillTextInputTest 1
             #endif
         }
         client.renderPointer()
@@ -195,7 +198,7 @@ final class StreamInputView: NSView {
 
     /// Every input this view makes: sent, or held while the host switches (at most 2 s, then dropped
     /// rather than typed into the wrong app). Pointer moves held collapse to the latest.
-    private func emit(_ event: InputEvent) {
+    func emit(_ event: InputEvent) {
         guard !LocalHostInput.current else { return }   // this Mac's own host posted it: never back out
         guard holding() else { client.sendInput(event); return }
         let now = ProcessInfo.processInfo.systemUptime
@@ -299,6 +302,8 @@ final class StreamInputView: NSView {
            convert(event.locationInWindow, from: nil).y < Self.titleStrip, event.clickCount == 1,
            dragsWindow(window, from: event) { return }
         guard let p = fraction(event, clamped: false) else { return }
+        commitComposition()   // a click elsewhere ends what is being composed, as in any text field
+        noteClick(at: convert(event.locationInWindow, from: nil))
         leftDown = true
         send(.move, p)
         send(.leftDown, p)
@@ -411,6 +416,8 @@ final class StreamInputView: NSView {
                 self.window?.makeFirstResponder(nil)
                 return nil
             }
+            // An input method composes here and sends committed text (StreamInputView+TextInput.swift).
+            if self.routeThroughTextInput(event) { return nil }
             self.forward(event.type, keyCode: event.keyCode, flags: event.modifierFlags, isRepeat: event.type == .keyDown && event.isARepeat)
             return nil
         }
@@ -461,6 +468,7 @@ final class StreamInputView: NSView {
 
     /// Every key and button this view has down goes up: the keyboard went elsewhere, or the session ended.
     func letGo() {
+        resetTextInput()
         for usage in keysDown.sorted() {   // keys first, then the modifiers (0xE0 up) they were typed with
             client.sendInput(.key(hidUsage: usage, down: false, modifiers: 0))
         }

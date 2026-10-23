@@ -824,6 +824,16 @@ final class StreamWindows: NSObject, NSWindowDelegate {
         window.orderFront(nil)
         focused(window)
     }
+
+    /// WindowBridge prototype: the window's size, its screen's scale and the decoded picture's, so a
+    /// run without the screen in front can say whether the picture shows 1:1.
+    func debugReport(_ source: StreamSource) {
+        guard let window = open[source] else { windowLog("report: \(source) not open"); return }
+        let content = window.contentLayoutRect.size, video = input.display.videoSize, rect = input.display.videoRect
+        windowLog("report: \(source) window content \(Int(content.width))×\(Int(content.height)) pt at \(window.backingScaleFactor)x, "
+                  + "decoded \(Int(video.width))×\(Int(video.height)) px, drawn \(Int(rect.width))×\(Int(rect.height)) pt "
+                  + "(\(rect.width > 0 ? String(format: "%.3f", video.width / rect.width) : "–") px per pt)")
+    }
     #endif
 
     private func focused(_ window: StreamWindow) {

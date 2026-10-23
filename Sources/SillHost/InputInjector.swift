@@ -136,7 +136,12 @@ final class InputInjector {
         case .keyDown, .keyUp, .flagsChanged:
             let key = event.getIntegerValueField(.keyboardEventKeycode)
             what = "key \(key) " + (event.type == .keyDown ? "down" : event.type == .keyUp ? "up" : "flags changed")
-            print("Test input: \(what) (\(KeyStrokes.names(lastKeyFlags)))")
+            // The characters a key down carries (typed text's Unicode string, or what the layout makes of the key).
+            var length = 0
+            var units = [UniChar](repeating: 0, count: 64)
+            if event.type == .keyDown { event.keyboardGetUnicodeString(maxStringLength: units.count, actualStringLength: &length, unicodeString: &units) }
+            let text = length > 0 ? " \"\(String(utf16CodeUnits: units, count: length).unicodeScalars.map { $0.value < 0x20 ? "\\u{\(String($0.value, radix: 16))}" : String($0) }.joined())\"" : ""
+            print("Test input: \(what)\(text) (\(KeyStrokes.names(lastKeyFlags)))")
             return
         case .mouseMoved: what = "pointer move"
         case .leftMouseDown: what = "left mouse down"
