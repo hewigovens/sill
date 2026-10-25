@@ -134,7 +134,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [addresses, ask-limits, away-copy, away-quality, away-wire, cable-link, clientlink, clipboard, compatibility, device-gate, dmg-layout, door-policy, duo, encoder-mailbox, encoder-slowstate, fence, gesture-chords, gestures, goodbye, hardware-keyboard, home-device, home-model, home-records, home-txt, installed-apps, key-strokes, keychain, link-judge, menu-state, menus, message-reader, origin, pairing-address, phone-portrait, pointer-control, pointer-presence, pointer-watch, policy, protocol, remote-rules, settings-window, tour, update-policy, virtual-display-api, window-restore]
+        check: [addresses, ask-limits, away-copy, away-quality, away-wire, cable-link, clientlink, clipboard, compatibility, device-gate, dmg-layout, door-policy, duo, encoder-mailbox, encoder-slowstate, fence, gesture-chords, gestures, goodbye, hardware-keyboard, home-device, home-model, home-records, home-txt, installed-apps, key-strokes, keychain, link-judge, menu-state, menus, message-reader, origin, pairing-address, phone-portrait, pointer-control, pointer-presence, pointer-watch, policy, protocol, remote-rules, settings-window, tour, update-policy, virtual-display-api, window-capture-scale, window-restore]
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
