@@ -1857,8 +1857,11 @@ package final class StreamCoordinator {
                     mainPill = pill
                 }
             }
-            // Sill's desk at 1× (an ultrawide's room) is captured at 1×: its pixels are its points.
-            let windowScale = desk.captureRect(for: id) != nil ? min(captureScale, desk.scale(for: id)) : captureScale
+            // Sill's desk at 1× (an ultrawide's room) is captured at 1×: its pixels are its points. A
+            // window in place, or cropped from its display with its app, at its own scale at most
+            // (windowCaptureScale); one staged on the virtual display at the stream's.
+            let windowScale = desk.captureRect(for: id) != nil ? min(captureScale, desk.scale(for: id))
+                : sourceRect == nil ? windowCaptureScale(captureScale, windowScale: filter?.pointPixelScale ?? 0) : captureScale
             width = evenPixels(size.width * windowScale); height = evenPixels(size.height * windowScale)
             // Staged on the virtual display, nothing is activated or raised on select: the window
             // cannot be covered there, and the AX moves that put it there touch no focus.
@@ -1907,8 +1910,10 @@ package final class StreamCoordinator {
                 if comeForward, !shuttingDown { activateAndRaise(window: w) }   // regular mode now: a pick comes forward
                 let fallback = "\(w.owningApplication?.applicationName ?? "?") — \(w.title ?? "")\(useSoftwareEncoder ? " (software encoder)" : "")"
                 do {
-                    try await startPipeline(source: source, filter: SCContentFilter(desktopIndependentWindow: w), sourceRect: nil,
-                                            width: evenPixels(w.frame.width * captureScale), height: evenPixels(w.frame.height * captureScale),
+                    let inPlace = SCContentFilter(desktopIndependentWindow: w)
+                    let scale = windowCaptureScale(captureScale, windowScale: inPlace.pointPixelScale)
+                    try await startPipeline(source: source, filter: inPlace, sourceRect: nil,
+                                            width: evenPixels(w.frame.width * scale), height: evenPixels(w.frame.height * scale),
                                             describe: fallback, title: title, kind: kind)
                 } catch {
                     print("Could not start streaming \(fallback): \(error)")
@@ -3107,12 +3112,16 @@ package final class StreamCoordinator {
                 broadcastList()
                 return
             }
-            // The encoder is fixed to one size, so a resized window means a fresh pipeline.
-            if let scw = catalog.window(id: id),
-               evenPixels(scw.frame.width * captureScale) != encoderWidth || evenPixels(scw.frame.height * captureScale) != encoderHeight {
-                _ = w
-                await select(active)
-                return
+            // The encoder is fixed to one size, so a resized window means a fresh pipeline, and so
+            // does a window whose scale changed (a Screen Sharing session coming or going on a Mac
+            // with no display of its own).
+            if let scw = catalog.window(id: id) {
+                let scale = windowCaptureScale(captureScale, windowScale: SCContentFilter(desktopIndependentWindow: scw).pointPixelScale)
+                if evenPixels(scw.frame.width * scale) != encoderWidth || evenPixels(scw.frame.height * scale) != encoderHeight {
+                    _ = w
+                    await select(active)
+                    return
+                }
             }
         }
         broadcastList()

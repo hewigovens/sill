@@ -295,10 +295,13 @@ final class SideStreams {
                 // On screen only: cropped from its display, a window in another Space showed what
                 // lay there instead (other apps' windows), not itself.
                 crop = (found.frame, found.filter, found.sourceRect)
-                plan = (found.filter, found.sourceRect, evenPixels(w.frame.width * streamScale), evenPixels(w.frame.height * streamScale))
+                let scale = windowCaptureScale(streamScale, windowScale: found.filter.pointPixelScale)
+                plan = (found.filter, found.sourceRect, evenPixels(w.frame.width * scale), evenPixels(w.frame.height * scale))
             } else {
-                plan = (SCContentFilter(desktopIndependentWindow: w), nil,
-                        evenPixels(w.frame.width * streamScale), evenPixels(w.frame.height * streamScale))
+                // At the window's own scale at most: a 1× window at 2× fills only the top-left quarter.
+                let inPlace = SCContentFilter(desktopIndependentWindow: w)
+                let scale = windowCaptureScale(streamScale, windowScale: inPlace.pointPixelScale)
+                plan = (inPlace, nil, evenPixels(w.frame.width * scale), evenPixels(w.frame.height * scale))
             }
             let width = plan.width, height = plan.height
             // A window at full speed runs at the main stream's rate: capped at its size as that is.
